@@ -1,0 +1,22 @@
+Package: cspca
+Type: Package
+Title: Conventional SPCA methods
+Version: 0.0.1
+Date: 2026-10-29
+Author: person(given = "Giovanni Maria", family = "Merola", email = "merolagio@gmail.com", role = c("aut", "cre"))
+Maintainer: Giovanni Maria Merola <merolagio@gmail.com>
+URL: https://github.com/merolagio/spcaMethods
+BugReports: https://github.com/merolagio/spcaMethods/issues
+Description: Collection of methods for computing conventional SPCA
+License: AGPL-3
+Encoding: UTF-8
+Depends: R (>= 4.3)
+Imports: Rcpp (>= 1.0.14), spca, ggplot2 (>= 4.0.0), scales, rlang
+Suggests: testthat (>= 3.0.0), peakRAM (>= 1.0.2), knitr, rmarkdown
+VignetteBuilder: knitr
+Config/testthat/edition: 3
+LinkingTo: Rcpp, RcppEigen
+RoxygenNote: 7.3.2
+Roxygen: list(markdown = TRUE)
+LazyData: true
+NeedsCompilation: yes
