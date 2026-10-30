@@ -1,4 +1,4 @@
-Package: cspca
+Package: spcaMethods
 Type: Package
 Title: Conventional SPCA methods
 Version: 0.0.1
