@@ -3,6 +3,7 @@
 .Rprofile
 .Rbuildignore
 spcaMethods.Rproj
+README.Rmd
 *Compile_output*.txt
 CLAUDE.md
 *Document_output*.txt
