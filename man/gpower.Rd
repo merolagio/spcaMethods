@@ -23,7 +23,7 @@ columns (as in \code{GPower.m}). Usually column-centred.}
 
 \item{rho}{sparsity parameters, relative to their upper bound, so values in
 \eqn{[0, 1)}; recycled to length \code{n_comps}.
-Larger values give sparser loadings.}
+Larger values give sparser weights.}
 
 \item{n_comps}{number of components.}
 
@@ -51,15 +51,25 @@ drawn with \code{rnorm}, so \code{set.seed()} makes results reproducible.}
 \item{eps}{tolerance on the relative change of the objective.}
 }
 \value{
-X list with
-\item{Z}{\eqn{n \times n_comps} matrix of sparse loadings, columns of unit norm
-(or zero when everything is thresholded). Signs are arbitrary.}
-\item{thresholds}{the absolute thresholds actually applied to each component.}
+an object of class \code{c("cspca", "spca", "list")} with
+\item{weights}{\eqn{ncol(X) \times n_comps} matrix of sparse weights,
+columns of unit norm (or zero when everything is thresholded). Signs
+are arbitrary. This is \code{Z} in \code{GPower.m}.}
+\item{n_comps}{number of components.}
+\item{cardinality}{number of non-zero weights of each component.}
+\item{pev}{Zou's adjusted proportion of explained variance of each
+component, from the QR decomposition of \code{X \%*\% weights}
+(\code{\link{compute_pev}}); the total is \code{sum(X^2)}.}
+\item{thresholds}{the absolute thresholds actually applied to each
+component.}
 \item{iterations}{iterations of the main loop (per component for the
 single-unit algorithm).}
+\item{method_name}{short label of the method, e.g.
+\code{"GPower_l1"} or \code{"GPower_l0_block"}.}
+\item{method_descrip}{one-line description of the method.}
 }
 \description{
-Computes \code{n_comps} sparse loading vectors with the generalized power
+Computes \code{n_comps} sparse weight vectors with the generalized power
 method of Journee, Nesterov, Richtarik and Sepulchre (2010), ported from the
 authors'
 MATLAB code \code{GPower.m} to C++ (RcppEigen). Four variants are available:
@@ -101,8 +111,9 @@ Rcpp::sourceCpp("gpower_byref.cpp")   # not needed when built as a package
 set.seed(1)
 X = scale(matrix(rnorm(100 * 40), 100), scale = FALSE)
 fit = gpower(X, rho = 0.2, n_comps = 3, penalty = "l1")
-colSums(fit$Z != 0)
-fit2 = gpower(X, rho = 0.1, n_comps = 3, penalty = "l0", block = TRUE, mu = c(1, 0.5, 0.25))
+fit$cardinality
+fit2 = gpower(X, rho = 0.1, n_comps = 3, penalty = "l0", block = TRUE,
+              mu = c(1, 0.5, 0.25))
 }
 
 }

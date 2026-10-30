@@ -46,17 +46,27 @@ lasso. Use \code{\link{spca_soft}} for \code{lambda = Inf}.}
 \pkg{elasticnet}'s default, 50 times the maximal number of variables.}
 }
 \value{
-a list with
-\item{P}{sparse weights, unit-norm columns (signs are arbitrary).}
-\item{Q}{orthonormal loadings, the polar factor of \eqn{X'XP}.}
-\item{pev}{adjusted proportion of explained variance per component, from the QR
-decomposition of \eqn{XP} (Zou et al. 2006; \code{$pev} in \pkg{elasticnet}).}
+an object of class \code{c("cspca", "spca", "list")} with
+\item{weights}{\eqn{p \times n_comps} matrix of sparse weights,
+unit-norm columns (signs are arbitrary). This is \eqn{B} (\code{P} in
+Camacho et al.) of Zou et al. (2006).}
+\item{n_comps}{number of components.}
+\item{cardinality}{number of non-zero weights of each component.}
+\item{pev}{Zou's adjusted proportion of explained variance of each
+component, from the QR decomposition of \code{X \%*\% weights}
+(Zou et al. 2006; \code{$pev} in \pkg{elasticnet});
+the total is \code{sum(X^2)}.}
+\item{coefficients}{\eqn{p \times n_comps} orthonormal matrix
+\eqn{C = A} of the regression model \eqn{\hat X = X W C'} of Zou et
+al., the polar factor of \eqn{X'XW} (\code{Q} in Camacho et al.).}
 \item{pev_pq}{proportion of explained variance of the model
 \eqn{X P (Q'P)^{-1} Q'} (Camacho et al. 2025, eq. 21).}
-\item{pev_pq_comp}{per-component variances \eqn{\|X w_k\|^2 / \|X\|^2} with
-\eqn{W = P (Q'P)^{-1}}, as \code{expvar} in MEDA.}
+\item{pev_pq_comp}{per-component variances \eqn{\|X w_k\|^2 / \|X\|^2}
+with \eqn{W = P (Q'P)^{-1}}, as \code{expvar} in MEDA.}
 \item{iterations}{alternating iterations used.}
 \item{totvar}{total sum of squares of \code{X}.}
+\item{method_name}{short label of the method, \code{"sPCA_Z"}.}
+\item{method_descrip}{one-line description of the method.}
 }
 \description{
 Port to C++ (RcppEigen) of \code{spca()} from the R package \pkg{elasticnet}
@@ -64,7 +74,7 @@ Port to C++ (RcppEigen) of \code{spca()} from the R package \pkg{elasticnet}
 SpaSM's \code{spca.m}, which Camacho et al. call \code{spca_zouhastie}, implements the
 same alternating algorithm: an elastic-net fit (ridge \code{lambda}) of each score
 \eqn{X a_k} on \eqn{X} gives the sparse weights, and a Procrustes step gives the
-orthonormal loadings.
+orthonormal coefficients.
 }
 \details{
 The data matrix is passed to C++ by reference (\code{Eigen::Map}), and \eqn{X'X} is

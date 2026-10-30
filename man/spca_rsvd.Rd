@@ -20,7 +20,7 @@ in columns. Must be column-centred.}
 
 \item{n_comps}{number of components.}
 
-\item{ps}{proportion of zero loadings, in \eqn{[0, 1)}; recycled to length
+\item{ps}{proportion of zero weights, in \eqn{[0, 1)}; recycled to length
 \code{n_comps}. \code{NULL} chooses the number of zeros by the ad hoc
 CPEV rule.}
 
@@ -37,29 +37,38 @@ Ignored when \code{ps} is given.}
 \item{eps}{tolerance on the change of the unit vector u between iterations.}
 }
 \value{
-a list with
-\item{V}{\eqn{p \times n_comps} matrix of sparse loadings, unit length.}
+an object of class \code{c("cspca", "spca", "list")} with
+\item{weights}{\eqn{p \times n_comps} matrix of sparse weights, unit
+length (\eqn{v} in Shen and Huang 2008).}
+\item{n_comps}{number of components.}
+\item{cardinality}{number of non-zero weights of each component.}
+\item{pev}{Zou's adjusted proportion of explained variance of each
+component, from the QR decomposition of \code{X \%*\% weights}
+(\code{\link{compute_pev}}); the total is \code{sum(X^2)}.}
+\item{own_pev}{the method's own measure: CPEV of the first k
+components, k = 1, ..., n_comps (cumulative).}
 \item{U}{\eqn{n \times n_comps} matrix of unit-length component vectors
 (\eqn{u = X_k \tilde v / \|X_k \tilde v\|}, \eqn{X_k} the residual).}
 \item{d}{\eqn{\|\tilde v\|} for each component.}
 \item{lambda}{the thresholds at convergence.}
-\item{n_zeros}{the number of zero loadings of each component.}
-\item{cpev}{CPEV of the first k components, k = 1, ..., n_comps.}
+\item{n_zeros}{the number of zero weights of each component.}
 \item{cpev_grid}{ad hoc rule only: CPEV for each value of
 \code{n_zeros_grid} (rows) and component (columns).}
 \item{iterations}{iterations used for each component.}
+\item{method_name}{short label of the method, \code{"rSVD"}.}
+\item{method_descrip}{one-line description of the method.}
 }
 \description{
-Computes \code{n_comps} sparse loading vectors with Algorithm 1 of Shen and
+Computes \code{n_comps} sparse weight vectors with Algorithm 1 of Shen and
 Huang (2008), soft-thresholding penalty, ported to C++ (RcppEigen). As in
 Guerra-Urzola's \code{sPCArSVD.m}, the tuning parameter is the degree of
-sparsity (number of zero loadings), and the threshold \eqn{\lambda} is reset
+sparsity (number of zero weights), and the threshold \eqn{\lambda} is reset
 at each iteration to the corresponding order statistic of \eqn{|X'u|}.
 }
 \details{
 The degree of sparsity is either
 \itemize{
-\item fixed: component j has \code{floor(ncol(X) * ps[j])} zero loadings;
+\item fixed: component j has \code{floor(ncol(X) * ps[j])} zero weights;
 \item or, when \code{ps = NULL}, chosen by the ad hoc rule of Shen and
 Huang (2008, Algorithm 3): for component k, the CPEV of the first k
 components is computed for each number of zeros j in
@@ -89,7 +98,7 @@ results differ.
 MATLAB stops on the relative change of \eqn{\|X - u v'\|_2 + 2
     \lambda \|v\|_1}, which needs the spectral norm of an
 \eqn{n \times p} matrix at every iteration.
-\item Loadings are returned with unit length; MATLAB scales them by
+\item Weights are returned with unit length; MATLAB scales them by
 \eqn{d_1}.
 \item \code{ps} can differ between components.
 }
@@ -101,7 +110,7 @@ Rcpp::sourceCpp("spca_rsvd.cpp")   # not needed when built as a package
 set.seed(1)
 X = scale(matrix(rnorm(100 * 40), 100), scale = FALSE)
 fit = spca_rsvd(X, n_comps = 3, ps = 0.8)
-colSums(fit$V != 0)
+fit$cardinality
 fit2 = spca_rsvd(X, n_comps = 3, drop = 0.05)   # ad hoc CPEV rule
 fit2$n_zeros
 }

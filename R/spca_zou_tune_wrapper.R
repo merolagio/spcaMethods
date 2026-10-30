@@ -39,17 +39,25 @@
 #' @param max_steps maximum number of LARS-EN steps; 0 means 50 times the
 #'   largest number of variables.
 #'
-#' @return a list with
-#'   \item{P}{weights, columns of unit length.}
-#'   \item{Q}{orthonormal loadings, \eqn{Q = polar(X'XP)}.}
+#' @return an object of class \code{c("cspca", "spca", "list")} with
+#'   \item{weights}{\eqn{p \times n_comps} matrix of sparse weights, columns
+#'     of unit length (\eqn{P}).}
+#'   \item{n_comps}{number of components.}
 #'   \item{cardinality}{chosen number of non-zero weights per component.}
-#'   \item{pev}{Zou's adjusted PEV of the final model.}
+#'   \item{pev}{Zou's adjusted proportion of explained variance of each
+#'     component, from the QR decomposition of \code{X \%*\% weights};
+#'     the total is \code{sum(X^2)}.}
+#'   \item{coefficients}{orthonormal coefficients \eqn{Q = polar(X'XP)} of
+#'     the model \eqn{\hat X = X P Q'}.}
 #'   \item{pev_pq}{Camacho's \eqn{PEV_{pq}} of the final model.}
 #'   \item{pev_pca}{PEV of the first k PCs, k = 1, ..., n_comps.}
 #'   \item{lambda}{ridge used.}
 #'   \item{candidate}{cardinalities proposed by the LARS-EN paths.}
 #'   \item{n_fits}{full fits used per component.}
 #'   \item{iterations}{iterations of the final fit.}
+#'   \item{method_name}{short label of the method, \code{"sPCA_M_Z"} or
+#'     \code{"sPCA_M_C"}.}
+#'   \item{method_descrip}{one-line description of the method.}
 #'
 #' @references H. Zou, T. Hastie, R. Tibshirani (2006). Sparse principal
 #'   component analysis. \emph{Journal of Computational and Graphical
@@ -83,9 +91,22 @@ spca_zou_tune = function(X, n_comps = 1L, method = c("Z", "C"), lambda = 0,
     stop("n_comps must be between 1 and min(nrow(X), ncol(X))")
   if (lambda < 0 || is.infinite(lambda)) stop("lambda must be finite, >= 0")
   if (alpha <= 0 || alpha > 1) stop("alpha must be in (0, 1]")
-  .spca_zou_tune_cpp(X, n_comps, as.double(lambda), method == "C",
-                     as.double(alpha), as.integer(max_iter),
-                     as.double(eps_conv), as.integer(max_steps))
+  fit = .spca_zou_tune_cpp(X, n_comps, as.double(lambda), method == "C",
+                           as.double(alpha), as.integer(max_iter),
+                           as.double(eps_conv), as.integer(max_steps))
+  W = fit$P
+  dimnames(W) = list(colnames(X), paste0("sPC", seq_len(n_comps)))
+  structure(list(
+    weights = W, n_comps = n_comps, cardinality = fit$cardinality,
+    pev = compute_pev(W, X), coefficients = fit$Q, pev_pq = fit$pev_pq,
+    pev_pca = fit$pev_pca, lambda = fit$lambda, candidate = fit$candidate,
+    n_fits = fit$n_fits, iterations = fit$iterations,
+    method_name = paste0("sPCA_M_", method),
+    method_descrip = paste0("Sparse PCA of Zou et al. (2006), cardinality ",
+                            "by PEV >= ", alpha, " PEV of PCA (",
+                            if (method == "Z") "Zou's adjusted PEV"
+                            else "Camacho's PEV_pq", ")")),
+    class = c("cspca", "spca", "list"))
   }, error = function(e) {
     stop("spca_zou_tune(): ", conditionMessage(e), call. = FALSE)
   })
@@ -142,13 +163,17 @@ spca_zou_tune = function(X, n_comps = 1L, method = c("Z", "C"), lambda = 0,
 #' @param max_steps maximum number of LARS-EN steps; 0 means 50 times the
 #'   largest number of variables.
 #'
-#' @return a list with
-#'   \item{P}{weights \eqn{\beta}, columns of unit length.}
-#'   \item{A}{the matrix A of the algorithm (orthonormal columns).}
-#'   \item{Q}{orthonormal loadings, \eqn{Q = polar(X'XP)}.}
+#' @return an object of class \code{c("cspca", "spca", "list")} with
+#'   \item{weights}{\eqn{p \times n_comps} matrix of sparse weights
+#'     \eqn{\beta}, columns of unit length.}
+#'   \item{n_comps}{number of components.}
 #'   \item{cardinality}{number of non-zero weights per component.}
-#'   \item{pev}{Zou's adjusted PEV of the first k components,
-#'     k = 1, ..., n_comps.}
+#'   \item{pev}{Zou's adjusted proportion of explained variance of each
+#'     component, from the QR decomposition of \code{X \%*\% weights};
+#'     the total is \code{sum(X^2)}.}
+#'   \item{A}{the matrix A of the algorithm (orthonormal columns).}
+#'   \item{coefficients}{orthonormal coefficients \eqn{Q = polar(X'XP)} of
+#'     the model \eqn{\hat X = X P Q'}.}
 #'   \item{pev_pq}{Camacho's \eqn{PEV_{pq}} of the final model.}
 #'   \item{pev_pca}{PEV of the first k PCs, k = 1, ..., n_comps.}
 #'   \item{lambda}{ridge used.}
@@ -156,6 +181,8 @@ spca_zou_tune = function(X, n_comps = 1L, method = c("Z", "C"), lambda = 0,
 #'     LARS-EN paths.}
 #'   \item{n_fits}{fits of each component.}
 #'   \item{iterations}{iterations of the final fit of each component.}
+#'   \item{method_name}{short label of the method, \code{"zSPCA_seq"}.}
+#'   \item{method_descrip}{one-line description of the method.}
 #'
 #' @references K. Sjostrand, L. H. Clemmensen, R. Larsen, G. Einarsson,
 #'   B. Ersboll (2018). SpaSM: A MATLAB toolbox for sparse statistical
@@ -197,9 +224,25 @@ spca_zou_seq = function(X, n_comps = 1L, card = NULL, alpha = 0.95,
     if (any(card < 1L)) stop("card must be positive")
   }
   if (lambda < 0) stop("lambda must be >= 0")
-  .spca_zou_seq_cpp(X, n_comps, card, as.double(lambda), as.double(alpha),
-                    as.integer(max_iter), as.double(eps_conv),
-                    as.integer(max_steps))
+  fit = .spca_zou_seq_cpp(X, n_comps, card, as.double(lambda),
+                          as.double(alpha), as.integer(max_iter),
+                          as.double(eps_conv), as.integer(max_steps))
+  W = fit$P
+  dimnames(W) = list(colnames(X), paste0("sPC", seq_len(n_comps)))
+  structure(list(
+    weights = W, n_comps = n_comps, cardinality = fit$cardinality,
+    # the C++ returns the cumulative PEV; R_jj does not depend on later
+    # columns, so the differences are the per-component values
+    pev = diff(c(0, fit$pev)), A = fit$A, coefficients = fit$Q,
+    pev_pq = fit$pev_pq, pev_pca = fit$pev_pca, lambda = fit$lambda,
+    candidate = fit$candidate, n_fits = fit$n_fits,
+    iterations = fit$iterations, method_name = "zSPCA_seq",
+    method_descrip = paste0("Sequential sparse PCA (Sjostrand et al. ",
+                            "2018), cardinality ",
+                            if (length(card) == 0L)
+                              paste0("by sPCA_M rule, alpha ", alpha)
+                            else "given")),
+    class = c("cspca", "spca", "list"))
   }, error = function(e) {
     stop("spca_zou_seq(): ", conditionMessage(e), call. = FALSE)
   })

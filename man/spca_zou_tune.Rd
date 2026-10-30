@@ -37,17 +37,25 @@ components must explain.}
 largest number of variables.}
 }
 \value{
-a list with
-\item{P}{weights, columns of unit length.}
-\item{Q}{orthonormal loadings, \eqn{Q = polar(X'XP)}.}
+an object of class \code{c("cspca", "spca", "list")} with
+\item{weights}{\eqn{p \times n_comps} matrix of sparse weights, columns
+of unit length (\eqn{P}).}
+\item{n_comps}{number of components.}
 \item{cardinality}{chosen number of non-zero weights per component.}
-\item{pev}{Zou's adjusted PEV of the final model.}
+\item{pev}{Zou's adjusted proportion of explained variance of each
+component, from the QR decomposition of \code{X \%*\% weights};
+the total is \code{sum(X^2)}.}
+\item{coefficients}{orthonormal coefficients \eqn{Q = polar(X'XP)} of
+the model \eqn{\hat X = X P Q'}.}
 \item{pev_pq}{Camacho's \eqn{PEV_{pq}} of the final model.}
 \item{pev_pca}{PEV of the first k PCs, k = 1, ..., n_comps.}
 \item{lambda}{ridge used.}
 \item{candidate}{cardinalities proposed by the LARS-EN paths.}
 \item{n_fits}{full fits used per component.}
 \item{iterations}{iterations of the final fit.}
+\item{method_name}{short label of the method, \code{"sPCA_M_Z"} or
+\code{"sPCA_M_C"}.}
+\item{method_descrip}{one-line description of the method.}
 }
 \description{
 Fits the sparse PCA of Zou, Hastie and Tibshirani (2006) (elastic-net

@@ -1,6 +1,6 @@
 #' Sparse PCA by the generalized power method (GPower)
 #'
-#' Computes \code{n_comps} sparse loading vectors with the generalized power 
+#' Computes \code{n_comps} sparse weight vectors with the generalized power 
 #' method of Journee, Nesterov, Richtarik and Sepulchre (2010), ported from the 
 #' authors'
 #' MATLAB code \code{GPower.m} to C++ (RcppEigen). Four variants are available:
@@ -37,7 +37,7 @@
 #'   columns (as in \code{GPower.m}). Usually column-centred.
 #' @param rho sparsity parameters, relative to their upper bound, so values in
 #'   \eqn{[0, 1)}; recycled to length \code{n_comps}. 
-#'   Larger values give sparser loadings.
+#'   Larger values give sparser weights.
 #' @param n_comps number of components.
 #' @param penalty \code{"l1"} or \code{"l0"}.
 #' @param block if \code{FALSE}, components are computed one at a time with
@@ -56,12 +56,22 @@
 #' @param iter_max maximum number of iterations.
 #' @param eps tolerance on the relative change of the objective.
 #'
-#' @return X list with
-#'   \item{Z}{\eqn{n \times n_comps} matrix of sparse loadings, columns of unit norm
-#'     (or zero when everything is thresholded). Signs are arbitrary.}
-#'   \item{thresholds}{the absolute thresholds actually applied to each component.}
+#' @return an object of class \code{c("cspca", "spca", "list")} with
+#'   \item{weights}{\eqn{ncol(X) \times n_comps} matrix of sparse weights,
+#'     columns of unit norm (or zero when everything is thresholded). Signs
+#'     are arbitrary. This is \code{Z} in \code{GPower.m}.}
+#'   \item{n_comps}{number of components.}
+#'   \item{cardinality}{number of non-zero weights of each component.}
+#'   \item{pev}{Zou's adjusted proportion of explained variance of each
+#'     component, from the QR decomposition of \code{X \%*\% weights}
+#'     (\code{\link{compute_pev}}); the total is \code{sum(X^2)}.}
+#'   \item{thresholds}{the absolute thresholds actually applied to each
+#'     component.}
 #'   \item{iterations}{iterations of the main loop (per component for the
 #'     single-unit algorithm).}
+#'   \item{method_name}{short label of the method, e.g.
+#'     \code{"GPower_l1"} or \code{"GPower_l0_block"}.}
+#'   \item{method_descrip}{one-line description of the method.}
 #'
 #' @references M. Journee, Y. Nesterov, P. Richtarik, R. Sepulchre (2010).
 #'   Generalized power method for sparse principal component analysis.
@@ -73,20 +83,23 @@
 #' set.seed(1)
 #' X = scale(matrix(rnorm(100 * 40), 100), scale = FALSE)
 #' fit = gpower(X, rho = 0.2, n_comps = 3, penalty = "l1")
-#' colSums(fit$Z != 0)
-#' fit2 = gpower(X, rho = 0.1, n_comps = 3, penalty = "l0", block = TRUE, mu = c(1, 0.5, 0.25))
+#' fit$cardinality
+#' fit2 = gpower(X, rho = 0.1, n_comps = 3, penalty = "l0", block = TRUE,
+#'               mu = c(1, 0.5, 0.25))
 #' }
 #'
 #' @export
-gpower = function(X, rho, n_comps = 1L, penalty = c("l1", "l0"), block = FALSE,
-                   mu = rep(1, n_comps), rho_scale = c("colnorm", "matlab"), 
-                   init = NULL, iter_max = 1000L, eps = 1e-4) {
+gpower = function(X, rho, n_comps = 1L, penalty = c("l1", "l0"),
+                  block = FALSE, mu = rep(1, n_comps),
+                  rho_scale = c("colnorm", "matlab"),
+                  init = NULL, iter_max = 1000L, eps = 1e-4) {
   tryCatch({
   penalty = match.arg(penalty)
   rho_scale = match.arg(rho_scale)
   if (is.data.frame(X)) {
     X = as.matrix(X)
-    storage.mode(X) = "double" # only copies when the input is not already double
+    # only copies when the input is not already double
+    storage.mode(X) = "double"
   }
   if (anyNA(X)) stop("X must not contain missing values")
   
@@ -104,22 +117,36 @@ gpower = function(X, rho, n_comps = 1L, penalty = c("l1", "l0"), block = FALSE,
   iter_max = as.integer(iter_max)
   eps = as.double(eps)
 
-  if (!block || n_comps == 1L)
-    return(.gpower_single(X, rho, n_comps, penalty == "l1", iter_max, eps))
-
-  mu = as.double(mu)
-  if (length(mu) != n_comps || any(mu <= 0)) 
-    stop("mu must be a positive vector of length n_comps")
-  if (is.null(init)) {
-    init = matrix(rnorm(p * (n_comps - 1L)), p, n_comps - 1L)
+  if (!block || n_comps == 1L) {
+    fit = .gpower_single(X, rho, n_comps, penalty == "l1", iter_max, eps)
   } else {
-    init = as.matrix(init)
-    storage.mode(init) = "double"
-    if (!identical(dim(init), c(p, n_comps - 1L))) 
-      stop("init must be a nrow(X) x (n_comps - 1) matrix")
+    mu = as.double(mu)
+    if (length(mu) != n_comps || any(mu <= 0))
+      stop("mu must be a positive vector of length n_comps")
+    if (is.null(init)) {
+      init = matrix(rnorm(p * (n_comps - 1L)), p, n_comps - 1L)
+    } else {
+      init = as.matrix(init)
+      storage.mode(init) = "double"
+      if (!identical(dim(init), c(p, n_comps - 1L)))
+        stop("init must be a nrow(X) x (n_comps - 1) matrix")
+    }
+    fit = .gpower_block(X, rho, mu, init, penalty == "l1",
+                        rho_scale == "matlab", iter_max, eps)
   }
-  .gpower_block(X, rho, mu, init, penalty == "l1", rho_scale == "matlab",
-                iter_max, eps)
+  block = block && n_comps > 1L
+  W = fit$Z
+  dimnames(W) = list(colnames(X), paste0("sPC", seq_len(n_comps)))
+  structure(list(
+    weights = W, n_comps = n_comps, cardinality = colSums(W != 0),
+    pev = compute_pev(W, X), thresholds = fit$thresholds,
+    iterations = fit$iterations,
+    method_name = paste0("GPower_", penalty, if (block) "_block"),
+    method_descrip = paste0("GPower (Journee et al. 2010), ", penalty,
+                            " penalty, ",
+                            if (block) "block" else "single-unit",
+                            " algorithm")),
+    class = c("cspca", "spca", "list"))
   }, error = function(e) {
     stop("gpower(): ", conditionMessage(e), call. = FALSE)
   })
@@ -127,7 +154,7 @@ gpower = function(X, rho, n_comps = 1L, penalty = c("l1", "l0"), block = FALSE,
 
 #' Single-unit GPower step with a chosen start point
 #'
-#' Computes one sparse loading vector with the single-unit GPower iteration of
+#' Computes one sparse weight vector with the single-unit GPower iteration of
 #' \code{GPower.m} (same iteration, stopping rule and pattern filling as \code{gpower()}
 #' with \code{block = FALSE}), but starting from \code{x0} instead of the largest-norm
 #' column of \code{X}. Plain R, for the uses \code{gpower()} does not cover:
@@ -148,7 +175,7 @@ gpower = function(X, rho, n_comps = 1L, penalty = c("l1", "l0"), block = FALSE,
 #' @param eps tolerance on the relative change of the objective.
 #'
 #' @return a list with
-#'   \item{z}{sparse loading vector of length \code{ncol(X)}, unit norm (or zero).}
+#'   \item{z}{sparse weight vector of length \code{ncol(X)}, unit norm (or zero).}
 #'   \item{y}{deflation vector: \code{X - y t(z)} is the deflated matrix.}
 #'   \item{x}{final iterate, to warm-start a fit with a nearby \code{rho}.}
 #'   \item{f}{final value of the objective.}
@@ -165,7 +192,8 @@ gpower = function(X, rho, n_comps = 1L, penalty = c("l1", "l0"), block = FALSE,
 #' }
 #'
 #' @export
-gpower_su = function(X, rho, x0, penalty = c("l1", "l0"), iter_max = 1000L, eps = 1e-4) {
+gpower_su = function(X, rho, x0, penalty = c("l1", "l0"), iter_max = 1000L,
+                     eps = 1e-4) {
   penalty = match.arg(penalty)
   soft = function(a, t) sign(a) * pmax(abs(a) - t, 0)
   vnorm = function(a) sqrt(sum(a^2))
@@ -186,7 +214,8 @@ gpower_su = function(X, rho, x0, penalty = c("l1", "l0"), iter_max = 1000L, eps 
     if (f[iter] == 0) break
     grad = if (penalty == "l1") X %*% tr else X %*% ((tr > 0) * Ax)
     x = drop(grad) / vnorm(grad)
-    if ((iter > 2 && (f[iter] - f[iter - 1]) / f[iter - 1] < eps) || iter > iter_max) break
+    if ((iter > 2 && (f[iter] - f[iter - 1]) / f[iter - 1] < eps) ||
+        iter > iter_max) break
     iter = iter + 1
   }
   Ax = drop(crossprod(X, x))
@@ -207,7 +236,8 @@ gpower_su = function(X, rho, x0, penalty = c("l1", "l0"), iter_max = 1000L, eps 
         tmp = drop(crossprod(Xr, Xr %*% u))
         u = tmp / vnorm(tmp)
         fp[it] = -2 * sum(u * tmp)
-        if ((it > 2 && abs(fp[it] - fp[it - 1]) / abs(fp[it - 1]) < 1e-6) || it > 1000) break
+        if ((it > 2 && abs(fp[it] - fp[it - 1]) / abs(fp[it - 1]) < 1e-6) ||
+            it > 1000) break
         it = it + 1
       }
       zf[support] = u

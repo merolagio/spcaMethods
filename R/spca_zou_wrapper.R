@@ -5,7 +5,7 @@
 #' SpaSM's \code{spca.m}, which Camacho et al. call \code{spca_zouhastie}, implements the
 #' same alternating algorithm: an elastic-net fit (ridge \code{lambda}) of each score
 #' \eqn{X a_k} on \eqn{X} gives the sparse weights, and a Procrustes step gives the
-#' orthonormal loadings.
+#' orthonormal coefficients.
 #'
 #' The data matrix is passed to C++ by reference (\code{Eigen::Map}), and \eqn{X'X} is
 #' never formed, so the function works with many more variables than observations.
@@ -29,17 +29,27 @@
 #' @param max_steps maximum number of LARS-EN steps per fit; 0 means
 #'   \pkg{elasticnet}'s default, 50 times the maximal number of variables.
 #'
-#' @return a list with
-#'   \item{P}{sparse weights, unit-norm columns (signs are arbitrary).}
-#'   \item{Q}{orthonormal loadings, the polar factor of \eqn{X'XP}.}
-#'   \item{pev}{adjusted proportion of explained variance per component, from the QR
-#'     decomposition of \eqn{XP} (Zou et al. 2006; \code{$pev} in \pkg{elasticnet}).}
+#' @return an object of class \code{c("cspca", "spca", "list")} with
+#'   \item{weights}{\eqn{p \times n_comps} matrix of sparse weights,
+#'     unit-norm columns (signs are arbitrary). This is \eqn{B} (\code{P} in
+#'     Camacho et al.) of Zou et al. (2006).}
+#'   \item{n_comps}{number of components.}
+#'   \item{cardinality}{number of non-zero weights of each component.}
+#'   \item{pev}{Zou's adjusted proportion of explained variance of each
+#'     component, from the QR decomposition of \code{X \%*\% weights}
+#'     (Zou et al. 2006; \code{$pev} in \pkg{elasticnet});
+#'     the total is \code{sum(X^2)}.}
+#'   \item{coefficients}{\eqn{p \times n_comps} orthonormal matrix
+#'     \eqn{C = A} of the regression model \eqn{\hat X = X W C'} of Zou et
+#'     al., the polar factor of \eqn{X'XW} (\code{Q} in Camacho et al.).}
 #'   \item{pev_pq}{proportion of explained variance of the model
 #'     \eqn{X P (Q'P)^{-1} Q'} (Camacho et al. 2025, eq. 21).}
-#'   \item{pev_pq_comp}{per-component variances \eqn{\|X w_k\|^2 / \|X\|^2} with
-#'     \eqn{W = P (Q'P)^{-1}}, as \code{expvar} in MEDA.}
+#'   \item{pev_pq_comp}{per-component variances \eqn{\|X w_k\|^2 / \|X\|^2}
+#'     with \eqn{W = P (Q'P)^{-1}}, as \code{expvar} in MEDA.}
 #'   \item{iterations}{alternating iterations used.}
 #'   \item{totvar}{total sum of squares of \code{X}.}
+#'   \item{method_name}{short label of the method, \code{"sPCA_Z"}.}
+#'   \item{method_descrip}{one-line description of the method.}
 #'
 #' @references H. Zou, T. Hastie, R. Tibshirani (2006). Sparse principal component
 #'   analysis. \emph{Journal of Computational and Graphical Statistics}, 15, 265--286.
@@ -80,8 +90,19 @@ spca_zou = function(X = NULL, n_comps = 1L, para, gram = NULL, lambda = 1e-6,
   if (lambda < 0) stop("lambda must be non-negative")
   if (is.infinite(lambda)) stop("for lambda = Inf use spca_soft()")
   para = as.double(rep_len(para, n_comps))
-  .spca_zou_cpp(X, n_comps, para, as.double(lambda), sparse == "varnum",
-                as.integer(max_iter), as.double(eps_conv), as.integer(max_steps))
+  fit = .spca_zou_cpp(X, n_comps, para, as.double(lambda),
+                      sparse == "varnum", as.integer(max_iter),
+                      as.double(eps_conv), as.integer(max_steps))
+  W = fit$P
+  dimnames(W) = list(colnames(X), paste0("sPC", seq_len(n_comps)))
+  structure(list(
+    weights = W, n_comps = n_comps, cardinality = colSums(W != 0),
+    pev = fit$pev, coefficients = fit$Q, pev_pq = fit$pev_pq,
+    pev_pq_comp = fit$pev_pq_comp, iterations = fit$iterations,
+    totvar = fit$totvar, method_name = "sPCA_Z",
+    method_descrip = paste0("Sparse PCA of Zou et al. (2006), elastic net ",
+                            "(LARS-EN), ridge ", lambda)),
+    class = c("cspca", "spca", "list"))
   }, error = function(e) {
     stop("spca_zou(): ", conditionMessage(e), call. = FALSE)
   })
@@ -92,7 +113,7 @@ spca_zou = function(X = NULL, n_comps = 1L, para, gram = NULL, lambda = 1e-6,
 #' Port to C++ (RcppEigen) of \code{spcaZou.m} from the MEDA Toolbox v1.8 (Camacho et
 #' al.), which is the \eqn{\lambda_2 = \infty} case of Zou et al. (2006): the sparse
 #' weights are soft-thresholded \eqn{X'X a_k}, followed by a Procrustes step for the
-#' loadings. Iterations, stopping rule (spectral norm of the change in the weights)
+#' coefficients. Iterations, stopping rule (spectral norm of the change in the weights)
 #' and outputs follow the MATLAB. \code{X} is passed by reference and is not
 #' preprocessed, as in MEDA; autoscale it first if needed.
 #'
@@ -106,16 +127,20 @@ spca_zou = function(X = NULL, n_comps = 1L, para, gram = NULL, lambda = 1e-6,
 #' @param tol stopping tolerance (MEDA default 1e-15).
 #' @param max_iter maximum number of iterations (MEDA default 1000).
 #'
-#' @return a list with \code{P} (sparse weights), \code{Q} (orthonormal loadings, MEDA
-#'   \code{altloads}), \code{pev_pq}, \code{pev_pq_comp} (MEDA \code{expvar} divided by
-#'   \code{var}), \code{iterations} and \code{totvar}; see \code{\link{spca_zou}}.
+#' @return an object of class \code{c("cspca", "spca", "list")} with the
+#'   elements of \code{\link{spca_zou}}: \code{weights}, \code{n_comps},
+#'   \code{cardinality}, \code{pev} (Zou's adjusted PEV, computed by
+#'   \code{\link{compute_pev}}), \code{coefficients} (MEDA \code{altloads}),
+#'   \code{pev_pq}, \code{pev_pq_comp} (MEDA \code{expvar} divided by
+#'   \code{var}), \code{iterations}, \code{totvar}, \code{method_name}
+#'   (\code{"sPCA_soft"}) and \code{method_descrip}.
 #'
 #' @examples
 #' \dontrun{
 #' Rcpp::sourceCpp("spca_zou.cpp")
 #' X = scale(matrix(rnorm(30 * 200), 30))
 #' fit = spca_soft(X, n_comps = 3, stop = -4)
-#' colSums(fit$P != 0)               # 4 4 4
+#' fit$cardinality                   # 4 4 4
 #' }
 #'
 #' @export
@@ -135,7 +160,18 @@ spca_soft = function(X = NULL, n_comps = 1L, stop, gram = NULL, tol = 1e-15,
   if (n_comps < 1L || n_comps > min(dim(X)))
     base::stop("n_comps must be between 1 and min(nrow(X), ncol(X))")
   stop = as.double(rep_len(stop, n_comps))
-  .spca_soft_cpp(X, n_comps, stop, as.double(tol), as.integer(max_iter))
+  fit = .spca_soft_cpp(X, n_comps, stop, as.double(tol),
+                       as.integer(max_iter))
+  W = fit$P
+  dimnames(W) = list(colnames(X), paste0("sPC", seq_len(n_comps)))
+  structure(list(
+    weights = W, n_comps = n_comps, cardinality = colSums(W != 0),
+    pev = compute_pev(W, X), coefficients = fit$Q, pev_pq = fit$pev_pq,
+    pev_pq_comp = fit$pev_pq_comp, iterations = fit$iterations,
+    totvar = fit$totvar, method_name = "sPCA_soft",
+    method_descrip = paste0("Sparse PCA of Zou et al. (2006) with ridge ",
+                            "Inf (soft thresholding, MEDA spcaZou)")),
+    class = c("cspca", "spca", "list"))
   }, error = function(e) {
     base::stop("spca_soft(): ", conditionMessage(e), call. = FALSE)
   })

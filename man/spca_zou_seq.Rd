@@ -40,13 +40,17 @@ given.}
 largest number of variables.}
 }
 \value{
-a list with
-\item{P}{weights \eqn{\beta}, columns of unit length.}
-\item{A}{the matrix A of the algorithm (orthonormal columns).}
-\item{Q}{orthonormal loadings, \eqn{Q = polar(X'XP)}.}
+an object of class \code{c("cspca", "spca", "list")} with
+\item{weights}{\eqn{p \times n_comps} matrix of sparse weights
+\eqn{\beta}, columns of unit length.}
+\item{n_comps}{number of components.}
 \item{cardinality}{number of non-zero weights per component.}
-\item{pev}{Zou's adjusted PEV of the first k components,
-k = 1, ..., n_comps.}
+\item{pev}{Zou's adjusted proportion of explained variance of each
+component, from the QR decomposition of \code{X \%*\% weights};
+the total is \code{sum(X^2)}.}
+\item{A}{the matrix A of the algorithm (orthonormal columns).}
+\item{coefficients}{orthonormal coefficients \eqn{Q = polar(X'XP)} of
+the model \eqn{\hat X = X P Q'}.}
 \item{pev_pq}{Camacho's \eqn{PEV_{pq}} of the final model.}
 \item{pev_pca}{PEV of the first k PCs, k = 1, ..., n_comps.}
 \item{lambda}{ridge used.}
@@ -54,6 +58,8 @@ k = 1, ..., n_comps.}
 LARS-EN paths.}
 \item{n_fits}{fits of each component.}
 \item{iterations}{iterations of the final fit of each component.}
+\item{method_name}{short label of the method, \code{"zSPCA_seq"}.}
+\item{method_descrip}{one-line description of the method.}
 }
 \description{
 Fits the sequential sparse PCA of Sjostrand et al. (2018, Algorithm 4),

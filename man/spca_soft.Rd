@@ -30,15 +30,19 @@ weights; a non-negative value is the soft threshold. Recycled to length
 \item{max_iter}{maximum number of iterations (MEDA default 1000).}
 }
 \value{
-a list with \code{P} (sparse weights), \code{Q} (orthonormal loadings, MEDA
-\code{altloads}), \code{pev_pq}, \code{pev_pq_comp} (MEDA \code{expvar} divided by
-\code{var}), \code{iterations} and \code{totvar}; see \code{\link{spca_zou}}.
+an object of class \code{c("cspca", "spca", "list")} with the
+elements of \code{\link{spca_zou}}: \code{weights}, \code{n_comps},
+\code{cardinality}, \code{pev} (Zou's adjusted PEV, computed by
+\code{\link{compute_pev}}), \code{coefficients} (MEDA \code{altloads}),
+\code{pev_pq}, \code{pev_pq_comp} (MEDA \code{expvar} divided by
+\code{var}), \code{iterations}, \code{totvar}, \code{method_name}
+(\code{"sPCA_soft"}) and \code{method_descrip}.
 }
 \description{
 Port to C++ (RcppEigen) of \code{spcaZou.m} from the MEDA Toolbox v1.8 (Camacho et
 al.), which is the \eqn{\lambda_2 = \infty} case of Zou et al. (2006): the sparse
 weights are soft-thresholded \eqn{X'X a_k}, followed by a Procrustes step for the
-loadings. Iterations, stopping rule (spectral norm of the change in the weights)
+coefficients. Iterations, stopping rule (spectral norm of the change in the weights)
 and outputs follow the MATLAB. \code{X} is passed by reference and is not
 preprocessed, as in MEDA; autoscale it first if needed.
 }
@@ -47,7 +51,7 @@ preprocessed, as in MEDA; autoscale it first if needed.
 Rcpp::sourceCpp("spca_zou.cpp")
 X = scale(matrix(rnorm(30 * 200), 30))
 fit = spca_soft(X, n_comps = 3, stop = -4)
-colSums(fit$P != 0)               # 4 4 4
+fit$cardinality                   # 4 4 4
 }
 
 }

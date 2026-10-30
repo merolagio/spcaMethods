@@ -21,14 +21,14 @@ gpower_su(X, rho, x0, penalty = c("l1", "l0"), iter_max = 1000L, eps = 1e-04)
 }
 \value{
 a list with
-\item{z}{sparse loading vector of length \code{ncol(X)}, unit norm (or zero).}
+\item{z}{sparse weight vector of length \code{ncol(X)}, unit norm (or zero).}
 \item{y}{deflation vector: \code{X - y t(z)} is the deflated matrix.}
 \item{x}{final iterate, to warm-start a fit with a nearby \code{rho}.}
 \item{f}{final value of the objective.}
 \item{iter}{iterations used.}
 }
 \description{
-Computes one sparse loading vector with the single-unit GPower iteration of
+Computes one sparse weight vector with the single-unit GPower iteration of
 \code{GPower.m} (same iteration, stopping rule and pattern filling as \code{gpower()}
 with \code{block = FALSE}), but starting from \code{x0} instead of the largest-norm
 column of \code{X}. Plain R, for the uses \code{gpower()} does not cover:
