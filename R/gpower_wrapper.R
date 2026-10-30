@@ -1,11 +1,12 @@
 #' Sparse PCA by the generalized power method (GPower)
 #'
-#' Computes \code{n_comps} sparse loading vectors with the generalized power method of
-#' Journee, Nesterov, Richtarik and Sepulchre (2010), ported from the authors'
+#' Computes \code{n_comps} sparse loading vectors with the generalized power 
+#' method of Journee, Nesterov, Richtarik and Sepulchre (2010), ported from the 
+#' authors'
 #' MATLAB code \code{GPower.m} to C++ (RcppEigen). Four variants are available:
 #' single-unit with deflation or block (all components at once), each with an
-#' \eqn{\ell_1} or \eqn{\ell_0} penalty, and the block variants optionally weighted
-#' by \code{mu}.
+#' \eqn{\ell_1} or \eqn{\ell_0} penalty, and the block variants optionally
+#'  weighted by \code{mu}.
 #'
 #' The data matrix is passed to C++ by reference (an \code{Eigen::Map} onto R's
 #' memory), so it is not copied as long as it is already a double-precision
@@ -15,18 +16,21 @@
 #'
 #' @section Differences from GPower.m:
 #' \itemize{
-#'   \item In the block algorithms, MATLAB multiplies \code{rho} by the R factor of
-#'     the QR decomposition used for the random start (\code{RHO*rho_max} is a
+#'   \item In the block algorithms, MATLAB multiplies \code{rho} by the R factor
+#'    of the QR decomposition used for the random start (\code{RHO*rho_max} is a
 #'     matrix product), so the first component gets a negative threshold and is
-#'     never sparse. By default (\code{rho_scale = "colnorm"}) the thresholds are
+#'     never sparse. By default (\code{rho_scale = "colnorm"}) the thresholds 
+#'     are
 #'     \eqn{\rho_j \mu_j \max_i \|a_i\|} (\eqn{\ell_1}) and
-#'     \eqn{\rho_j \mu_j^2 \max_i \|a_i\|^2} (\eqn{\ell_0}), the bounds of the paper.
+#'     \eqn{\rho_j \mu_j^2 \max_i \|a_i\|^2} (\eqn{\ell_0}), the bounds of the
+#'      paper.
 #'     \code{rho_scale = "matlab"} reproduces the MATLAB behaviour.
-#'   \item In the \eqn{\ell_0} single-unit algorithm, a fully thresholded component
-#'     is returned as a zero column; MATLAB returns NaN for it and for every later
-#'     component.
-#'   \item The unweighted block algorithm is used only when all \code{mu} equal 1;
-#'     MATLAB tests \code{sum(mu - 1) == 0}, which ignores e.g. \code{mu = c(0.5, 1.5)}.
+#'   \item In the \eqn{\ell_0} single-unit algorithm, a fully thresholded
+#'    component is returned as a zero column; MATLAB returns NaN for it and for
+#'     every later component.
+#'   \item The unweighted block algorithm is used only when all \code{mu} 
+#'   equal 1; MATLAB tests \code{sum(mu - 1) == 0}, which ignores e.g. 
+#'   \code{mu = c(0.5, 1.5)}.
 #' }
 #'
 #' @param X numeric matrix, \eqn{p \times n}: observations in rows, variables in
@@ -145,7 +149,7 @@ gpower = function(X, rho, n_comps = 1L, penalty = c("l1", "l0"), block = FALSE,
 #'
 #' @return a list with
 #'   \item{z}{sparse loading vector of length \code{ncol(X)}, unit norm (or zero).}
-#'   \item{y}{deflation vector: \code{X - y z'} is the deflated matrix.}
+#'   \item{y}{deflation vector: \code{X - y t(z)} is the deflated matrix.}
 #'   \item{x}{final iterate, to warm-start a fit with a nearby \code{rho}.}
 #'   \item{f}{final value of the objective.}
 #'   \item{iter}{iterations used.}

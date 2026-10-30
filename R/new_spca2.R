@@ -1,3 +1,22 @@
+#' Compute Cumulative Variances from Component Gram Matrices
+#'
+#' Cumulative explained variance of the first j components, for j = 1..k,
+#' from the component Gram matrix G = A'A-type matrix and H, using
+#' cv_j = trace(solve(G_j) H_j), where G_j and H_j are the leading j x j blocks.
+#' @param G Symmetric positive definite k x k matrix.
+#' @param H Symmetric k x k matrix with the same dimensions as G.
+#' @return Numeric vector of length k, cumulative variances in raw units.
+#' @noRd
+tall_cumulative_variance = function(G, H) {
+  k = ncol(G)
+  vapply(seq_len(k), function(j) {
+    ind = seq_len(j)
+    spca:::trace_mat(spca:::ab(
+      spca:::solve_spd(G[ind, ind, drop = FALSE]),
+      H[ind, ind, drop = FALSE]))
+  }, numeric(1))
+}
+
 #' Construct an SPCA Object Without a Large Covariance Matrix
 #'
 #' Uses the installed spca package's C++ wrappers. Source this file to use it
@@ -19,6 +38,9 @@
 #'   columns and components beyond the numerical data rank are rejected.
 #'   PC correlations can differ in sign from the covariance backend because
 #'   eigenvector signs are arbitrary (and bases can differ for tied eigenvalues).
+#'   The tall backend (fat_matrix = FALSE with pca_obj) avoids forming S when
+#'   X is supplied: it works with the n x k scores and the p x k product X'B.
+#'   When S is supplied it uses one product S [A V] and never forms S twice.
 new_spca2 = function(A, S = NULL, X = NULL, method_name = NULL,
                      fat_matrix = NULL, pca_obj = NULL) {
   if (!requireNamespace("spca", quietly = TRUE))
@@ -83,29 +105,70 @@ new_spca2 = function(A, S = NULL, X = NULL, method_name = NULL,
   Z = if (!is.null(X))
     spca:::ab(X[, active, drop = FALSE], A[active, , drop = FALSE]) else NULL
   if (!fat_matrix) {
-    if (is.null(S)) S = spca:::ata(X) / (nrow(X) - 1)
-    if (!is.matrix(S) || !is.numeric(S) || any(!is.finite(S)) ||
-        !identical(dim(S), c(nrow(A), nrow(A))) ||
-        !spca:::is_symmetric_fast(S))
-      stop("S must be a compatible finite symmetric matrix", call. = FALSE)
-    if (!is.null(X) && !isTRUE(all.equal(colSums(X^2)/(nrow(X)-1),
-                                        diag(S), check.attributes = FALSE,
-                                        tolerance = 1e-6)))
-      stop("diag(S) is not compatible with X", call. = FALSE)
-    totv = spca:::trace_mat(S)
-    pc_values = pca_obj$vexp_pc[seq_len(k)] * totv
-    SV = spca:::ab(S, V)
-    if (!isTRUE(all.equal(unname(SV),
-                          unname(sweep(V, 2, pc_values, "*")), tolerance = 1e-6)))
-      stop("pca_obj eigenvectors/variances are incompatible with S", call. = FALSE)
-    variances = spca:::make_vexp(A, S)
-    cv = as.numeric(variances$cvexp)
-    ve = as.numeric(variances$vexp)
-    SA = spca:::ab(S, A)
-    cor_pc = diag(spca:::atb(A, SV)) /
-      sqrt(colSums(A * SA) * pc_values)
-    spc_cor = if (k == 1L) matrix(1, 1L, 1L) else
-      spca:::make_spc_cor_S(A, S)
+    if (is.null(S)) {
+      # Data route: S = X'X/(n-1) is never formed. Only the n x k scores
+      # and the p x k product X'B are needed.
+      totv = sum(X^2) / (nrow(X) - 1)
+      if (!is.finite(totv) || totv <= 0)
+        stop("X must have positive finite total variance", call. = FALSE)
+      pc_values = pca_obj$vexp_pc[seq_len(k)] * totv
+      XV = spca:::ab(X, V)
+      if (!isTRUE(all.equal(unname(colSums(XV^2) / (nrow(X) - 1)),
+                            unname(pc_values), tolerance = 1e-6)))
+        stop("pca_obj variances are incompatible with X; check preprocessing",
+             call. = FALSE)
+
+      # Normalize scores for better conditioning; their span is unchanged.
+      score_norms = colSums(Z^2)
+      if (any(!is.finite(score_norms)) || any(score_norms <= 0))
+        stop("Every component must have positive finite score variance",
+             call. = FALSE)
+      B = spca:::scale_columns(Z, 2)
+      G = spca:::ata(B)
+      if (rcond(G) <= max(dim(X)) * .Machine$double.eps)
+        stop("Score columns are numerically linearly dependent", call. = FALSE)
+
+      # B'SB = W'W/(n-1), with W = X'B (p x k)
+      W = spca:::atb(X, B)
+      H = spca:::ata(W) / (nrow(X) - 1)
+      cv = tall_cumulative_variance(G, H)
+      ve = diff(c(0, cv))
+      # correlation of X a_j with X v_j: cov / (sd_scores * sd_pc)
+      cor_pc = colSums(Z * XV) /
+        sqrt((nrow(X) - 1) * colSums(Z^2) * pc_values)
+      spc_cor = if (k == 1L) matrix(1, 1L, 1L) else cov2cor(G)
+    } else {
+      if (!is.matrix(S) || !is.numeric(S) || any(!is.finite(S)) ||
+          !identical(dim(S), c(nrow(A), nrow(A))) ||
+          !spca:::is_symmetric_fast(S))
+        stop("S must be a compatible finite symmetric matrix", call. = FALSE)
+      if (!is.null(X) && !isTRUE(all.equal(colSums(X^2) / (nrow(X) - 1),
+                                          diag(S), check.attributes = FALSE,
+                                          tolerance = 1e-6)))
+        stop("diag(S) is not compatible with X", call. = FALSE)
+      totv = spca:::trace_mat(S)
+      pc_values = pca_obj$vexp_pc[seq_len(k)] * totv
+
+      # one product with S gives both SA and SV
+      SAV = spca:::ab(S, cbind(A, V))
+      SA = SAV[, seq_len(k), drop = FALSE]
+      SV = SAV[, k + seq_len(k), drop = FALSE]
+      if (!isTRUE(all.equal(unname(SV),
+                            unname(sweep(V, 2, pc_values, "*")),
+                            tolerance = 1e-6)))
+        stop("pca_obj eigenvectors/variances are incompatible with S",
+             call. = FALSE)
+
+      # G = A'SA, H = A'S^2A = (SA)'(SA)
+      G = spca:::atb(A, SA)
+      if (any(diag(G) <= 0))
+        stop("Every component must have positive variance", call. = FALSE)
+      H = spca:::ata(SA)
+      cv = tall_cumulative_variance(G, H)
+      ve = diff(c(0, cv))
+      cor_pc = colSums(A * SV) / sqrt(diag(G) * pc_values)
+      spc_cor = if (k == 1L) matrix(1, 1L, 1L) else cov2cor(G)
+    }
   } else {
   K = spca:::aat(X) / (nrow(X) - 1)
   if (is.null(pca_obj)) {

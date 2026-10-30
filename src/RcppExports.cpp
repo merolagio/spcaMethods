@@ -13,7 +13,7 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 
 // gpower_guerra
 Rcpp::List gpower_guerra(const Eigen::Map<Eigen::MatrixXd> A, const Eigen::Map<Eigen::VectorXd> rho, const Eigen::Map<Eigen::MatrixXd> U, int iter_max, double eps);
-RcppExport SEXP _cspca_gpower_guerra(SEXP ASEXP, SEXP rhoSEXP, SEXP USEXP, SEXP iter_maxSEXP, SEXP epsSEXP) {
+RcppExport SEXP _spcaMethods_gpower_guerra(SEXP ASEXP, SEXP rhoSEXP, SEXP USEXP, SEXP iter_maxSEXP, SEXP epsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -28,7 +28,7 @@ END_RCPP
 }
 // gpower_single
 Rcpp::List gpower_single(const Eigen::Map<Eigen::MatrixXd> A, const Eigen::Map<Eigen::VectorXd> rho, int m, bool l1, int iter_max, double eps);
-RcppExport SEXP _cspca_gpower_single(SEXP ASEXP, SEXP rhoSEXP, SEXP mSEXP, SEXP l1SEXP, SEXP iter_maxSEXP, SEXP epsSEXP) {
+RcppExport SEXP _spcaMethods_gpower_single(SEXP ASEXP, SEXP rhoSEXP, SEXP mSEXP, SEXP l1SEXP, SEXP iter_maxSEXP, SEXP epsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -44,7 +44,7 @@ END_RCPP
 }
 // gpower_block
 Rcpp::List gpower_block(const Eigen::Map<Eigen::MatrixXd> A, const Eigen::Map<Eigen::VectorXd> rho, const Eigen::Map<Eigen::VectorXd> mu, const Eigen::Map<Eigen::MatrixXd> G, bool l1, bool matlab_scale, int iter_max, double eps);
-RcppExport SEXP _cspca_gpower_block(SEXP ASEXP, SEXP rhoSEXP, SEXP muSEXP, SEXP GSEXP, SEXP l1SEXP, SEXP matlab_scaleSEXP, SEXP iter_maxSEXP, SEXP epsSEXP) {
+RcppExport SEXP _spcaMethods_gpower_block(SEXP ASEXP, SEXP rhoSEXP, SEXP muSEXP, SEXP GSEXP, SEXP l1SEXP, SEXP matlab_scaleSEXP, SEXP iter_maxSEXP, SEXP epsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -62,7 +62,7 @@ END_RCPP
 }
 // pevDataC
 Eigen::VectorXd pevDataC(const Eigen::Map<Eigen::MatrixXd>& W, const Eigen::Map<Eigen::MatrixXd>& X);
-RcppExport SEXP _cspca_pevDataC(SEXP WSEXP, SEXP XSEXP) {
+RcppExport SEXP _spcaMethods_pevDataC(SEXP WSEXP, SEXP XSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -74,7 +74,7 @@ END_RCPP
 }
 // pevCovC
 Eigen::VectorXd pevCovC(const Eigen::Map<Eigen::MatrixXd>& W, const Eigen::Map<Eigen::MatrixXd>& S);
-RcppExport SEXP _cspca_pevCovC(SEXP WSEXP, SEXP SSEXP) {
+RcppExport SEXP _spcaMethods_pevCovC(SEXP WSEXP, SEXP SSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -86,7 +86,7 @@ END_RCPP
 }
 // spca_rsvd_cpp
 Rcpp::List spca_rsvd_cpp(const Eigen::Map<Eigen::MatrixXd> X, const Eigen::Map<Eigen::VectorXi> n_zeros, const Eigen::Map<Eigen::VectorXi> grid, double drop, int iter_max, double eps);
-RcppExport SEXP _cspca_spca_rsvd_cpp(SEXP XSEXP, SEXP n_zerosSEXP, SEXP gridSEXP, SEXP dropSEXP, SEXP iter_maxSEXP, SEXP epsSEXP) {
+RcppExport SEXP _spcaMethods_spca_rsvd_cpp(SEXP XSEXP, SEXP n_zerosSEXP, SEXP gridSEXP, SEXP dropSEXP, SEXP iter_maxSEXP, SEXP epsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -102,7 +102,7 @@ END_RCPP
 }
 // spca_zou_cpp
 Rcpp::List spca_zou_cpp(const Eigen::Map<Eigen::MatrixXd> X, int K, const Eigen::Map<Eigen::VectorXd> para, double lambda, bool varnum, int max_iter, double eps_conv, int max_steps);
-RcppExport SEXP _cspca_spca_zou_cpp(SEXP XSEXP, SEXP KSEXP, SEXP paraSEXP, SEXP lambdaSEXP, SEXP varnumSEXP, SEXP max_iterSEXP, SEXP eps_convSEXP, SEXP max_stepsSEXP) {
+RcppExport SEXP _spcaMethods_spca_zou_cpp(SEXP XSEXP, SEXP KSEXP, SEXP paraSEXP, SEXP lambdaSEXP, SEXP varnumSEXP, SEXP max_iterSEXP, SEXP eps_convSEXP, SEXP max_stepsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -120,7 +120,7 @@ END_RCPP
 }
 // spca_soft_cpp
 Rcpp::List spca_soft_cpp(const Eigen::Map<Eigen::MatrixXd> X, int K, const Eigen::Map<Eigen::VectorXd> stop, double tol, int max_iter);
-RcppExport SEXP _cspca_spca_soft_cpp(SEXP XSEXP, SEXP KSEXP, SEXP stopSEXP, SEXP tolSEXP, SEXP max_iterSEXP) {
+RcppExport SEXP _spcaMethods_spca_soft_cpp(SEXP XSEXP, SEXP KSEXP, SEXP stopSEXP, SEXP tolSEXP, SEXP max_iterSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -135,7 +135,7 @@ END_RCPP
 }
 // spca_zou_tune_cpp
 Rcpp::List spca_zou_tune_cpp(const Eigen::Map<Eigen::MatrixXd> X, int K, double lambda, bool camacho, double alpha, int max_iter, double eps_conv, int max_steps);
-RcppExport SEXP _cspca_spca_zou_tune_cpp(SEXP XSEXP, SEXP KSEXP, SEXP lambdaSEXP, SEXP camachoSEXP, SEXP alphaSEXP, SEXP max_iterSEXP, SEXP eps_convSEXP, SEXP max_stepsSEXP) {
+RcppExport SEXP _spcaMethods_spca_zou_tune_cpp(SEXP XSEXP, SEXP KSEXP, SEXP lambdaSEXP, SEXP camachoSEXP, SEXP alphaSEXP, SEXP max_iterSEXP, SEXP eps_convSEXP, SEXP max_stepsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -153,7 +153,7 @@ END_RCPP
 }
 // spca_zou_seq_cpp
 Rcpp::List spca_zou_seq_cpp(const Eigen::Map<Eigen::MatrixXd> X, int K, const Eigen::Map<Eigen::VectorXi> card, double lambda, double alpha, int max_iter, double eps_conv, int max_steps);
-RcppExport SEXP _cspca_spca_zou_seq_cpp(SEXP XSEXP, SEXP KSEXP, SEXP cardSEXP, SEXP lambdaSEXP, SEXP alphaSEXP, SEXP max_iterSEXP, SEXP eps_convSEXP, SEXP max_stepsSEXP) {
+RcppExport SEXP _spcaMethods_spca_zou_seq_cpp(SEXP XSEXP, SEXP KSEXP, SEXP cardSEXP, SEXP lambdaSEXP, SEXP alphaSEXP, SEXP max_iterSEXP, SEXP eps_convSEXP, SEXP max_stepsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -171,20 +171,20 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_cspca_gpower_guerra", (DL_FUNC) &_cspca_gpower_guerra, 5},
-    {"_cspca_gpower_single", (DL_FUNC) &_cspca_gpower_single, 6},
-    {"_cspca_gpower_block", (DL_FUNC) &_cspca_gpower_block, 8},
-    {"_cspca_pevDataC", (DL_FUNC) &_cspca_pevDataC, 2},
-    {"_cspca_pevCovC", (DL_FUNC) &_cspca_pevCovC, 2},
-    {"_cspca_spca_rsvd_cpp", (DL_FUNC) &_cspca_spca_rsvd_cpp, 6},
-    {"_cspca_spca_zou_cpp", (DL_FUNC) &_cspca_spca_zou_cpp, 8},
-    {"_cspca_spca_soft_cpp", (DL_FUNC) &_cspca_spca_soft_cpp, 5},
-    {"_cspca_spca_zou_tune_cpp", (DL_FUNC) &_cspca_spca_zou_tune_cpp, 8},
-    {"_cspca_spca_zou_seq_cpp", (DL_FUNC) &_cspca_spca_zou_seq_cpp, 8},
+    {"_spcaMethods_gpower_guerra", (DL_FUNC) &_spcaMethods_gpower_guerra, 5},
+    {"_spcaMethods_gpower_single", (DL_FUNC) &_spcaMethods_gpower_single, 6},
+    {"_spcaMethods_gpower_block", (DL_FUNC) &_spcaMethods_gpower_block, 8},
+    {"_spcaMethods_pevDataC", (DL_FUNC) &_spcaMethods_pevDataC, 2},
+    {"_spcaMethods_pevCovC", (DL_FUNC) &_spcaMethods_pevCovC, 2},
+    {"_spcaMethods_spca_rsvd_cpp", (DL_FUNC) &_spcaMethods_spca_rsvd_cpp, 6},
+    {"_spcaMethods_spca_zou_cpp", (DL_FUNC) &_spcaMethods_spca_zou_cpp, 8},
+    {"_spcaMethods_spca_soft_cpp", (DL_FUNC) &_spcaMethods_spca_soft_cpp, 5},
+    {"_spcaMethods_spca_zou_tune_cpp", (DL_FUNC) &_spcaMethods_spca_zou_tune_cpp, 8},
+    {"_spcaMethods_spca_zou_seq_cpp", (DL_FUNC) &_spcaMethods_spca_zou_seq_cpp, 8},
     {NULL, NULL, 0}
 };
 
-RcppExport void R_init_cspca(DllInfo *dll) {
+RcppExport void R_init_spcaMethods(DllInfo *dll) {
     R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
     R_useDynamicSymbols(dll, FALSE);
 }
